@@ -7,7 +7,7 @@ module.exports = {
     execute(client) {
         console.log(`🔥 بات ${client.user.tag} با موفقیت آنلاین شد!`);
 
-        setInterval(async () => {
+        const updateChannels = async () => {
             try {
                 const guild = client.guilds.cache.get(config.guildId);
                 if (!guild) return;
@@ -26,15 +26,19 @@ module.exports = {
                 const botsChannel = guild.channels.cache.get(config.botCountChannelId);
                 const onlineChannel = guild.channels.cache.get(config.onlineMembersChannelId);
 
-                if (totalChannel) await totalChannel.setName(`Members : ${totalMembers}`);
-                if (botsChannel) await botsChannel.setName(`Bots : ${botCount}`);
-                if (onlineChannel) await onlineChannel.setName(`Online : ${onlineMembers}`);
+                if (totalChannel) await totalChannel.setName(`🌐Members : ${totalMembers}`);
+                if (botsChannel) await botsChannel.setName(`🤖Bots : ${botCount}`);
+                if (onlineChannel) await onlineChannel.setName(`🟢Online : ${onlineMembers}`);
 
                 console.log('✅ وضعیت چنل‌ها آپدیت شد!');
 
             } catch (error) {
                 console.error('❌ خطایی در آپدیت چنل‌ها پیش آمد:', error);
             }
-        }, 600000);
+        };
+
+        updateChannels();
+
+        setInterval(updateChannels, 600000);
     },
 };
