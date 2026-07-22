@@ -1,0 +1,15 @@
+{
+  "name": "itachi-commniuty",
+  "version": "0.1.0",
+  "description": "discord bot for itachi comniuty",
+  "license": "ISC",
+  "author": "Notron",
+  "type": "commonjs",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "dependencies": {
+    "discord.js": "^14.27.0"
+  }
+}
