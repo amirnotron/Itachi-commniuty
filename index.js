@@ -1,6 +1,7 @@
 const fs = require('node:fs');
 const path = require('node:path');
 const { Client, Collection, GatewayIntentBits } = require('discord.js');
+const mongoose = require('mongoose');
 const config = require('./config.json');
 
 const client = new Client({
@@ -12,6 +13,10 @@ const client = new Client({
 });
 
 client.commands = new Collection();
+
+mongoose.connect(config.mongoURI).then(() => {
+    console.log('Connected to MongoDB');
+}).catch(err => console.error(err));
 
 const eventsPath = path.join(__dirname, 'events');
 const eventFiles = fs.readdirSync(eventsPath).filter(file => file.endsWith('.js'));
@@ -34,8 +39,6 @@ for (const file of commandFiles) {
     const command = require(filePath);
     if ('data' in command && 'execute' in command) {
         client.commands.set(command.data.name, command);
-    } else {
-        console.log(`[WARNING] Command at ${filePath} is missing a required "data" or "execute" property.`);
     }
 }
 
