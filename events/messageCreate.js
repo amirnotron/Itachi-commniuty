@@ -1,0 +1,89 @@
+const { Events, PermissionFlagsBits } = require('discord.js');
+const SecurityConfig = require('../models/SecurityConfig');
+
+// حافظه موقت رم برای الگوریتم Sliding Window آنتی‌اسپم
+const spamMap = new Map();
+
+module.exports = {
+    name: Events.MessageCreate,
+    async execute(message, client) {
+        if (!message.guild || message.author.bot) return;
+
+        // ادمین‌های کل سرور نیازی به فیلتر شدن ندارند
+        if (message.member?.permissions.has(PermissionFlagsBits.Administrator)) return;
+
+        const config = await SecurityConfig.findOne({ guildId: message.guild.id });
+        if (!config) return;
+
+        const userId = message.author.id;
+        const channelId = message.channel.id;
+        const userRoles = message.member.roles.cache.map(r => r.id);
+
+        // چک کردن وایت‌لیست کاربر یا رول
+        const isWhitelisted = config.antiLink.whitelistedUsers.includes(userId) ||
+            userRoles.some(roleId => config.antiLink.whitelistedRoles.includes(roleId));
+
+        if (isWhitelisted) return;
+
+        // --- ۱. سیستم آنتی‌لینک پیشرفته ---
+        if (config.antiLink.enabled) {
+            const discordInviteRegex = /(discord\.(gg|io|me|li)|discord\.com\/invite)\/[a-zA-Z0-9]+/i;
+            const generalLinkRegex = /(https?:\/\/[^\s]+)/gi;
+
+            const containsInvite = discordInviteRegex.test(message.content);
+            const containsWebLink = generalLinkRegex.test(message.content);
+
+            // سناریو A: لینک اینوایت دیسکورد ارسال شده
+            if (containsInvite) {
+                const isInviteAllowed = config.antiLink.allowedInviteChannels.includes(channelId);
+                if (!isInviteAllowed) {
+                    await message.delete().catch(() => {});
+                    
+                    // تایم‌اوت ۲۴ ساعته (۱ روز)
+                    const ONE_DAY_MS = 24 * 60 * 60 * 1000;
+                    await message.member.timeout(ONE_DAY_MS, 'ارسال لینک اینوایت دیسکورد غیرمجاز').catch(console.error);
+
+                    const warn = await message.channel.send(`⚠️ ${message.author} به دلیل ارسال لینک اینوایت دیسکورد به مدت **۱ روز** تایم‌اوت شد.`);
+                    setTimeout(() => warn.delete().catch(() => {}), 6000);
+                    return;
+                }
+            } 
+            // سناریو B: لینک عادی وب ارسال شده
+            else if (containsWebLink) {
+                const isWebAllowed = config.antiLink.allowedWebChannels.includes(channelId);
+                if (!isWebAllowed) {
+                    await message.delete().catch(() => {});
+                    const warn = await message.channel.send(`⚠️ ${message.author} ارسال لینک وب در این چنل مجاز نیست.`);
+                    setTimeout(() => warn.delete().catch(() => {}), 5000);
+                    return;
+                }
+            }
+        }
+
+        // --- ۲. سیستم آنتی‌اسپم (Sliding Window Algorithm) ---
+        if (config.antiSpam.enabled) {
+            const now = Date.now();
+            const { maxMessages, timeWindowMs, timeoutMs } = config.antiSpam;
+
+            if (!spamMap.has(userId)) {
+                spamMap.set(userId, []);
+            }
+
+            const userTimestamps = spamMap.get(userId);
+            userTimestamps.push(now);
+
+            // پاکسازی پیام‌های قدیمی‌تر از بازه زمانی تعریف‌شده
+            const recentMessages = userTimestamps.filter(timestamp => now - timestamp < timeWindowMs);
+            spamMap.set(userId, recentMessages);
+
+            if (recentMessages.length > maxMessages) {
+                await message.delete().catch(() => {});
+                await message.member.timeout(timeoutMs, 'تجاوز از حد مجاز ارسال پیام (Spam)').catch(console.error);
+                
+                spamMap.delete(userId); // ریست حافظه کاربر
+                const warn = await message.channel.send(`🚫 ${message.author} به دلیل اسپم مجدداً به مدت ۱۰ دقیقه بی‌صدا شد.`);
+                setTimeout(() => warn.delete().catch(() => {}), 6000);
+            }
+        }
+    }
+};

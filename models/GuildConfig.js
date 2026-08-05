@@ -6,6 +6,18 @@ const guildConfigSchema = new Schema({
         required: true,
         unique: true
     },
+    totalMembersChannelId: {
+        type: String,
+        default: ""
+    },
+    botCountChannelId: {
+        type: String,
+        default: ""
+    },
+    onlineMembersChannelId: {
+        type: String,
+        default: ""
+    },
     ticketCategoryId: {
         type: String,
         default: ""

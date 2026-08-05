@@ -8,7 +8,10 @@ const client = new Client({
     intents: [
         GatewayIntentBits.Guilds,
         GatewayIntentBits.GuildMembers,
-        GatewayIntentBits.GuildPresences
+        GatewayIntentBits.GuildPresences,
+        GatewayIntentBits.GuildMessages,      // اضافه شده
+        GatewayIntentBits.MessageContent,      // اضافه شده
+        GatewayIntentBits.GuildModeration      // اضافه شده
     ]
 });
 
@@ -38,7 +41,7 @@ for (const file of commandFiles) {
     const filePath = path.join(commandsPath, file);
     const command = require(filePath);
     if ('data' in command && 'execute' in command) {
-        client.commands.set(command.data.name, command);
+        client.commands.set(command.data.name, command); 
     }
 }
 
