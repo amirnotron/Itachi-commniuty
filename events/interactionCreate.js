@@ -1,5 +1,7 @@
 const { Events, ChannelType, PermissionFlagsBits, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, AttachmentBuilder } = require('discord.js');
 const GuildConfig = require('../models/GuildConfig');
+const Giveaway = require('../models/Giveaway');
+const ServerMember = require('../models/ServerMember');
 
 module.exports = {
     name: Events.InteractionCreate,
@@ -81,10 +83,38 @@ module.exports = {
         // ۳. هندل کردن دکمه‌ها (داشبورد و داخل تیکت)
         // ==========================================
         else if (interaction.isButton()) {
+            if (interaction.customId === 'gw_join') {
+                await interaction.deferReply({ ephemeral: true });
+
+                const gw = await Giveaway.findOne({ messageId: interaction.message.id });
+                if (!gw) return interaction.editReply('❌ این گیووی دیگر در دیتابیس موجود نیست.');
+                if (gw.ended) return interaction.editReply('❌ زمان این قرعه‌کشی به پایان رسیده است.');
+
+                if (gw.participants.includes(interaction.user.id)) {
+                    gw.participants = gw.participants.filter(id => id !== interaction.user.id);
+                    await gw.save();
+                    return interaction.editReply('✅ شما از لیست شرکت‌کنندگان این قرعه‌کشی خارج شدید.');
+                }
+
+                if (gw.reqInvites > 0) {
+                    const memberData = await ServerMember.findOne({ guildId: interaction.guild.id, userId: interaction.user.id });
+                    const validInvites = memberData
+                        ? memberData.inviteTimestamps.filter(timestamp => timestamp >= gw.createdAt).length
+                        : 0;
+
+                    if (validInvites < gw.reqInvites) {
+                        return interaction.editReply(`❌ شما شرایط لازم را ندارید!\n\nشما از زمان شروع این گیووی تا الان **${validInvites}** نفر را دعوت کرده‌اید.\nشما به **${gw.reqInvites - validInvites}** دعوت دیگر نیاز دارید.`);
+                    }
+                }
+
+                gw.participants.push(interaction.user.id);
+                await gw.save();
+                return interaction.editReply('🎉 شما با موفقیت در این قرعه‌کشی شرکت کردید!');
+            }
+
             const dbConfig = await GuildConfig.findOne({ guildId: interaction.guild.id });
             if (!dbConfig) return;
 
-            // ---- دکمه ارسال پنل از داشبورد مدیریت ----
             if (interaction.customId === 'admin_send_panel') {
                 const embed = new EmbedBuilder()
                     .setTitle('🎫 پشتیبانی سرور')
@@ -99,7 +129,6 @@ module.exports = {
                 return interaction.reply({ content: '✅ پنل تیکت با موفقیت ارسال شد.', ephemeral: true });
             }
 
-            // ---- ساخت تیکت ----
             if (interaction.customId === 'create_ticket') {
                 if (!dbConfig.ticketCategoryId) return interaction.reply({ content: '❌ کتگوری تیکت هنوز در داشبورد مدیریت تنظیم نشده است.', ephemeral: true });
                 await interaction.deferReply({ ephemeral: true });
@@ -109,7 +138,6 @@ module.exports = {
                     { id: interaction.user.id, allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages] }
                 ];
 
-                // دادن پرمیشن به رول‌ها و یوزرهای ساپورت که تو داشبورد تنظیم کردی
                 dbConfig.supportRoleIds.forEach(id => permissionOverwrites.push({ id, allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages] }));
                 dbConfig.supportUserIds.forEach(id => permissionOverwrites.push({ id, allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages] }));
 
@@ -136,7 +164,6 @@ module.exports = {
                 await ticketChannel.send({ content: `${interaction.user} | ${supportMentions}`, embeds: [welcomeEmbed], components: [closeBtn] });
             }
 
-            // ---- بستن تیکت ----
             else if (interaction.customId === 'close_ticket') {
                 await interaction.deferReply();
                 const ownerId = interaction.channel.topic;
