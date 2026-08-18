@@ -1,6 +1,7 @@
 const { Events, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
 const GuildConfig = require('../models/GuildConfig');
 const Giveaway = require('../models/Giveaway');
+const { addXP } = require('../utils/levelManager');
 
 module.exports = {
     name: Events.ClientReady,
@@ -102,5 +103,22 @@ module.exports = {
                 console.error('❌ خطایی در لوپ بررسی گیووی‌ها رخ داد:', error);
             }
         }, 15000);
+
+        setInterval(() => {
+            client.guilds.cache.forEach(guild => {
+                const voiceChannels = guild.channels.cache.filter(c => c.isVoiceBased());
+
+                voiceChannels.forEach(channel => {
+                    channel.members.forEach(member => {
+                        const vs = member.voice;
+
+                        if (!vs.selfMute && !vs.serverMute && !vs.selfDeaf && !vs.serverDeaf) {
+                            const voiceXpToGive = Math.floor(Math.random() * 11) + 10;
+                            addXP(member, voiceXpToGive, true);
+                        }
+                    });
+                });
+            });
+        }, 60000);
     },
 };
