@@ -35,22 +35,27 @@ module.exports = {
                 });
                 await interaction.editReply(`🔍 در حال پردازش: **${query}**...`);
             } catch (e) {
+                console.error(e);
                 await interaction.editReply('❌ مشکلی در پخش به وجود آمد.');
             }
+            return; // 👈 این بخش اضافه شد تا بعد از پخش، کد ادامه پیدا نکند
         }
 
-        else if (sub === 'join') {
+        if (sub === 'join') {
             interaction.client.distube.voices.join(voiceChannel);
             return interaction.reply({ content: '✅ با موفقیت وارد ویس شدم!', ephemeral: true });
         }
 
-        else if (sub === 'disconnect') {
+        if (sub === 'disconnect') {
             if (queue) queue.stop();
             interaction.client.distube.voices.leave(interaction.guildId);
             return interaction.reply({ content: '👋 از چنل خارج شدم.', ephemeral: true });
         }
 
-        if (!queue) return interaction.reply({ content: '❌ هیچ آهنگی در حال پخش نیست!', ephemeral: true });
+        // بررسی اینکه آیا آهنگی در حال پخش است یا خیر (برای بقیه دستورات)
+        if (!queue) {
+            return interaction.reply({ content: '❌ هیچ آهنگی در حال پخش نیست!', ephemeral: true });
+        }
 
         if (sub === 'pause') {
             if (queue.paused) {

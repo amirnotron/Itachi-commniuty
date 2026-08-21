@@ -8,6 +8,7 @@ const { SpotifyPlugin } = require('@distube/spotify');
 const { SoundCloudPlugin } = require('@distube/soundcloud');
 const { AppleMusicPlugin } = require('distube-apple-music');
 const { YtDlpPlugin } = require('@distube/yt-dlp');
+process.env.FFMPEG_PATH = require('ffmpeg-static');
 
 const client = new Client({
     intents: [
@@ -16,15 +17,12 @@ const client = new Client({
         GatewayIntentBits.GuildPresences,
         GatewayIntentBits.GuildMessages,
         GatewayIntentBits.MessageContent,
-        GatewayIntentBits.GuildModeration
+        GatewayIntentBits.GuildModeration,
+        GatewayIntentBits.GuildVoiceStates // 👈 این خط اضافه شد
     ]
 });
 
 client.distube = new DisTube(client, {
-    leaveOnEmpty: true,
-    leaveOnFinish: true,
-    leaveOnStop: true,
-    emitNewSongOnly: true,
     plugins: [
         new SpotifyPlugin(),
         new SoundCloudPlugin(),
