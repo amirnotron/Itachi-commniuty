@@ -3,15 +3,33 @@ const path = require('node:path');
 const { Client, Collection, GatewayIntentBits } = require('discord.js');
 const mongoose = require('mongoose');
 const config = require('./config.json');
+const { DisTube } = require('distube');
+const { SpotifyPlugin } = require('@distube/spotify');
+const { SoundCloudPlugin } = require('@distube/soundcloud');
+const { AppleMusicPlugin } = require('distube-apple-music');
+const { YtDlpPlugin } = require('@distube/yt-dlp');
 
 const client = new Client({
     intents: [
         GatewayIntentBits.Guilds,
         GatewayIntentBits.GuildMembers,
         GatewayIntentBits.GuildPresences,
-        GatewayIntentBits.GuildMessages,      // اضافه شده
-        GatewayIntentBits.MessageContent,      // اضافه شده
-        GatewayIntentBits.GuildModeration      // اضافه شده
+        GatewayIntentBits.GuildMessages,
+        GatewayIntentBits.MessageContent,
+        GatewayIntentBits.GuildModeration
+    ]
+});
+
+client.distube = new DisTube(client, {
+    leaveOnEmpty: true,
+    leaveOnFinish: true,
+    leaveOnStop: true,
+    emitNewSongOnly: true,
+    plugins: [
+        new SpotifyPlugin(),
+        new SoundCloudPlugin(),
+        new AppleMusicPlugin(),
+        new YtDlpPlugin()
     ]
 });
 
@@ -41,7 +59,7 @@ for (const file of commandFiles) {
     const filePath = path.join(commandsPath, file);
     const command = require(filePath);
     if ('data' in command && 'execute' in command) {
-        client.commands.set(command.data.name, command); 
+        client.commands.set(command.data.name, command);
     }
 }
 
