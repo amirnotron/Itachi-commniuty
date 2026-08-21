@@ -2,6 +2,7 @@ const { Events, ChannelType, PermissionFlagsBits, EmbedBuilder, ActionRowBuilder
 const GuildConfig = require('../models/GuildConfig');
 const Giveaway = require('../models/Giveaway');
 const ServerMember = require('../models/ServerMember');
+const SecurityConfig = require('../models/SecurityConfig'); // این رو برات اضافه کردم تا سیستم امنیتت ارور نده
 
 module.exports = {
     name: Events.InteractionCreate,
@@ -80,9 +81,44 @@ module.exports = {
         }
 
         // ==========================================
-        // ۳. هندل کردن دکمه‌ها (داشبورد و داخل تیکت)
+        // ۳. هندل کردن دکمه‌ها (موزیک، داشبورد و تیکت)
         // ==========================================
         else if (interaction.isButton()) {
+
+            // 🎵 دکمه‌های کنترل سیستم موزیک
+            if (interaction.customId.startsWith('music_')) {
+                const queue = client.distube.getQueue(interaction.guildId);
+                if (!queue) return interaction.reply({ content: '❌ آهنگی در حال پخش نیست!', ephemeral: true });
+
+                if (interaction.member.voice.channelId !== interaction.guild.members.me.voice.channelId) {
+                    return interaction.reply({ content: '❌ شما باید در کانال ویسِ ربات باشید!', ephemeral: true });
+                }
+
+                switch (interaction.customId) {
+                    case 'music_pause':
+                        if (queue.paused) queue.resume();
+                        else queue.pause();
+                        return interaction.reply({ content: queue.paused ? '⏸️ موزیک متوقف شد.' : '▶️ پخش موزیک ادامه یافت.', ephemeral: true });
+
+                    case 'music_skip':
+                        if (queue.songs.length === 1) queue.stop();
+                        else queue.skip();
+                        return interaction.reply({ content: '⏭️ آهنگ اسکیپ شد.', ephemeral: true });
+
+                    case 'music_loop':
+                        const mode = queue.repeatMode === 0 ? 1 : (queue.repeatMode === 1 ? 2 : 0);
+                        queue.setRepeatMode(mode);
+                        const modeStr = mode === 0 ? 'خاموش' : (mode === 1 ? 'تکرار یک آهنگ' : 'تکرار کل لیست');
+                        return interaction.reply({ content: `🔁 لوپ تغییر کرد: **${modeStr}**`, ephemeral: true });
+
+                    case 'music_stop':
+                        queue.stop();
+                        return interaction.reply({ content: '⏹️ آهنگ متوقف و صف پاک شد.', ephemeral: true });
+                }
+                return;
+            }
+
+            // 🎁 دکمه شرکت در قرعه‌کشی (گیووی)
             if (interaction.customId === 'gw_join') {
                 await interaction.deferReply({ ephemeral: true });
 
@@ -112,6 +148,7 @@ module.exports = {
                 return interaction.editReply('🎉 شما با موفقیت در این قرعه‌کشی شرکت کردید!');
             }
 
+            // 🎫 هندل کردن دکمه‌های تیکت
             const dbConfig = await GuildConfig.findOne({ guildId: interaction.guild.id });
             if (!dbConfig) return;
 
@@ -196,7 +233,6 @@ module.exports = {
                 const buffer = Buffer.from(transcriptText, 'utf-8');
                 const attachment = new AttachmentBuilder(buffer, { name: `${interaction.channel.name}-transcript.txt` });
 
-                // اگر چنل ترانسکریپت در داشبورد ست شده بود، لاگ رو میفرسته اونجا
                 if (dbConfig.transcriptChannelId) {
                     const transcriptCh = interaction.guild.channels.cache.get(dbConfig.transcriptChannelId);
                     if (transcriptCh) {
@@ -205,7 +241,6 @@ module.exports = {
                     }
                 }
 
-                // اگه ست نشده بود همونجا میفرسته
                 await interaction.editReply({ content: '📄 فایل رونوشت آماده شد:', files: [attachment] });
             }
 
