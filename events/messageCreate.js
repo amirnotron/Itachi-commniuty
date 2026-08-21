@@ -9,6 +9,32 @@ module.exports = {
     async execute(message, client) {
         if (!message.guild || message.author.bot) return;
 
+        const prefix = 'g$';
+        if (message.content.startsWith(prefix)) {
+            const args = message.content.slice(prefix.length).trim().split(/ +/);
+            const command = args.shift().toLowerCase();
+
+            if (command === 'play') {
+                const query = args.join(' ');
+                if (!query) return message.reply('❌ باید اسم یا لینک آهنگ رو بنویسی! (مثال: `g$play Reza Pishro Azad`)');
+
+                const voiceChannel = message.member.voice.channel;
+                if (!voiceChannel) return message.reply('❌ اول باید وارد یک چنل ویس بشی!');
+
+                message.reply(`🔍 در حال جستجوی **${query}**...`);
+
+                try {
+                    await client.distube.play(voiceChannel, query, {
+                        member: message.member,
+                        textChannel: message.channel,
+                        message
+                    });
+                } catch (err) {
+                    message.channel.send('❌ آهنگ پیدا نشد یا خطایی رخ داد.');
+                }
+            }
+        }
+
         const textXpToGive = Math.floor(Math.random() * 11) + 15;
         await addXP(message.member, textXpToGive, false);
 

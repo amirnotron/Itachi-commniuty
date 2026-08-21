@@ -33,6 +33,8 @@ client.distube = new DisTube(client, {
     ]
 });
 
+require('./events/distubeEvents')(client);
+
 client.commands = new Collection();
 
 mongoose.connect(config.mongoURI).then(() => {
