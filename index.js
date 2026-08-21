@@ -9,6 +9,14 @@ const { SoundCloudPlugin } = require('@distube/soundcloud');
 const { AppleMusicPlugin } = require('distube-apple-music');
 const { YtDlpPlugin } = require('@distube/yt-dlp');
 process.env.FFMPEG_PATH = 'C:\\ffmpeg\\bin\\ffmpeg.exe';
+
+process.on('unhandledRejection', (reason) => {
+    console.error('❌ Unhandled Promise Rejection:', reason);
+});
+process.on('uncaughtException', (err) => {
+    console.error('❌ Uncaught Exception:', err);
+});
+
 const client = new Client({
     intents: [
         GatewayIntentBits.Guilds,
@@ -39,7 +47,7 @@ mongoose.connect(config.mongoURI).then(() => {
 }).catch(err => console.error(err));
 
 const eventsPath = path.join(__dirname, 'events');
-const eventFiles = fs.readdirSync(eventsPath).filter(file => file.endsWith('.js'));
+const eventFiles = fs.readdirSync(eventsPath).filter(file => file.endsWith('.js') && file !== 'distubeEvents.js');
 
 for (const file of eventFiles) {
     const filePath = path.join(eventsPath, file);
