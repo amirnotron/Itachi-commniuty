@@ -29,8 +29,13 @@ module.exports = (client) => {
                 .setColor('#2c3040');
             queue.textChannel.send({ embeds: [embed] });
         })
-        .on('error', (channel, error) => {
-            console.error(error);
-            if (channel) channel.send('❌ مشکلی در پخش این آهنگ به وجود آمد!');
+        // 👇 این بخش اصلاح شد
+        .on('error', (error, queue, song) => {
+            console.error('Distube Error:', error);
+
+            // چک می‌کنیم که آیا صفی وجود داره و کانال متنی در دسترس هست یا نه
+            if (queue && queue.textChannel) {
+                queue.textChannel.send('❌ مشکلی در پخش این آهنگ به وجود آمد!');
+            }
         });
 };

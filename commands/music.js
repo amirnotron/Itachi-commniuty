@@ -24,6 +24,7 @@ module.exports = {
 
         const queue = interaction.client.distube.getQueue(interaction.guildId);
 
+        // 1️⃣ بخش PLAY
         if (sub === 'play') {
             await interaction.deferReply();
             const query = interaction.options.getString('query');
@@ -36,27 +37,30 @@ module.exports = {
                 await interaction.editReply(`🔍 در حال پردازش: **${query}**...`);
             } catch (e) {
                 console.error(e);
-                await interaction.editReply('❌ مشکلی در پخش به وجود آمد.');
+                await interaction.editReply('❌ مشکلی در پیدا کردن یا پخش این آهنگ به وجود آمد.');
             }
-            return; // 👈 این بخش اضافه شد تا بعد از پخش، کد ادامه پیدا نکند
+            return; 
         }
 
+        // 2️⃣ بخش JOIN
         if (sub === 'join') {
-            interaction.client.distube.voices.join(voiceChannel);
+            await interaction.client.distube.voices.join(voiceChannel);
             return interaction.reply({ content: '✅ با موفقیت وارد ویس شدم!', ephemeral: true });
         }
 
+        // 3️⃣ بخش DISCONNECT
         if (sub === 'disconnect') {
-            if (queue) queue.stop();
+            if (queue) await queue.stop();
             interaction.client.distube.voices.leave(interaction.guildId);
-            return interaction.reply({ content: '👋 از چنل خارج شدم.', ephemeral: true });
+            return interaction.reply({ content: '👋 از چنل خارج شدم.' });
         }
 
-        // بررسی اینکه آیا آهنگی در حال پخش است یا خیر (برای بقیه دستورات)
+        // ⚠️ چک کردن اینکه آیا آهنگی در حال پخش هست یا نه (برای بقیه دستورات)
         if (!queue) {
             return interaction.reply({ content: '❌ هیچ آهنگی در حال پخش نیست!', ephemeral: true });
         }
 
+        // 4️⃣ بخش PAUSE / RESUME
         if (sub === 'pause') {
             if (queue.paused) {
                 queue.resume();
@@ -67,15 +71,22 @@ module.exports = {
             }
         }
 
+        // 5️⃣ بخش SKIP
         else if (sub === 'skip') {
-            if (queue.songs.length === 1) {
-                queue.stop();
-                return interaction.reply({ content: '⏹️ این آخرین آهنگ بود و لیست پخش تمام شد.' });
+            try {
+                if (queue.songs.length <= 1) {
+                    await queue.stop();
+                    return interaction.reply({ content: '⏹️ این آخرین آهنگ بود و لیست پخش تمام شد.' });
+                }
+                await queue.skip();
+                return interaction.reply({ content: '⏭️ رفتیم آهنگ بعدی!' });
+            } catch (e) {
+                console.error(e);
+                return interaction.reply({ content: '❌ مشکلی در رد کردن آهنگ پیش آمد.', ephemeral: true });
             }
-            queue.skip();
-            return interaction.reply({ content: '⏭️ رفتیم آهنگ بعدی!' });
         }
 
+        // 6️⃣ بخش REPEAT
         else if (sub === 'repeat') {
             let mode = queue.repeatMode;
             mode = mode === 0 ? 1 : (mode === 1 ? 2 : 0);

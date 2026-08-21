@@ -8,8 +8,7 @@ const { SpotifyPlugin } = require('@distube/spotify');
 const { SoundCloudPlugin } = require('@distube/soundcloud');
 const { AppleMusicPlugin } = require('distube-apple-music');
 const { YtDlpPlugin } = require('@distube/yt-dlp');
-process.env.FFMPEG_PATH = require('ffmpeg-static');
-
+process.env.FFMPEG_PATH = 'C:\\ffmpeg\\bin\\ffmpeg.exe';
 const client = new Client({
     intents: [
         GatewayIntentBits.Guilds,
