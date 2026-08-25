@@ -1,4 +1,4 @@
-const { SlashCommandBuilder, PermissionFlagsBits, EmbedBuilder } = require('discord.js');
+const { SlashCommandBuilder, PermissionFlagsBits, MessageFlags } = require('discord.js');
 const LevelConfig = require('../models/LevelConfig');
 const UserLevel = require('../models/UserLevel');
 const { calculateNeededXP, handleLevelUp } = require('../utils/levelManager');
@@ -29,6 +29,10 @@ module.exports = {
             .addIntegerOption(opt => opt.setName('amount').setDescription('مقدار لول').setRequired(true))),
 
     async execute(interaction) {
+        // همون اول به دیسکورد میگیم که ربات در حال پردازشه تا ارور تایم‌اوت نده
+        // استفاده از MessageFlags برای رفع اون هشدار زرد رنگ کنسول
+        await interaction.deferReply({ flags: MessageFlags.Ephemeral });
+
         const sub = interaction.options.getSubcommand();
         let config = await LevelConfig.findOne({ guildId: interaction.guild.id });
         if (!config) config = await LevelConfig.create({ guildId: interaction.guild.id });
@@ -37,19 +41,19 @@ module.exports = {
             const channel = interaction.options.getChannel('channel');
             config.announcementChannelId = channel.id;
             await config.save();
-            return interaction.reply({ content: `✅ چنل اعلام لول‌آپ روی ${channel} تنظیم شد.`, ephemeral: true });
+            // چون defer کردیم، حالا باید از editReply استفاده کنیم
+            return interaction.editReply({ content: `✅ چنل اعلام لول‌آپ روی ${channel} تنظیم شد.` });
         }
 
         if (sub === 'add-role') {
             const level = interaction.options.getInteger('level');
             const role = interaction.options.getRole('role');
 
-            // اگر قبلا رولی برای این لول بود، جایگزین می‌کنه
             config.roleRewards = config.roleRewards.filter(r => r.level !== level);
             config.roleRewards.push({ level, roleId: role.id });
             await config.save();
 
-            return interaction.reply({ content: `✅ رول ${role} برای **لول ${level}** ثبت شد.`, ephemeral: true });
+            return interaction.editReply({ content: `✅ رول ${role} برای **لول ${level}** ثبت شد.` });
         }
 
         if (sub === 'manage-user') {
@@ -66,15 +70,29 @@ module.exports = {
             if (action === 'remove_level') userLevel.level = Math.max(1, userLevel.level - amount);
             if (action === 'set_level') userLevel.level = Math.max(1, amount);
 
-            userLevel.xp = 0; // برای تمیز موندن، بعد از تغییر لول دستی، اکس‌پی صفر میشه
+            userLevel.xp = 0;
             await userLevel.save();
 
             const targetMember = interaction.guild.members.cache.get(targetUser.id);
             if (targetMember && userLevel.level > oldLevel) {
+
+                for (const reward of config.roleRewards) {
+                    if (reward.level > oldLevel && reward.level <= userLevel.level) {
+                        const role = interaction.guild.roles.cache.get(reward.roleId);
+                        if (role) {
+                            try {
+                                await targetMember.roles.add(role);
+                            } catch (error) {
+                                console.error(`❌ خطا در دادن رول لول ${reward.level}:`, error);
+                            }
+                        }
+                    }
+                }
+
                 await handleLevelUp(targetMember, userLevel.level, oldLevel);
             }
 
-            return interaction.reply({ content: `✅ لول کاربر ${targetUser} به **${userLevel.level}** تغییر یافت.`, ephemeral: true });
+            return interaction.editReply({ content: `✅ لول کاربر ${targetUser} به **${userLevel.level}** تغییر یافت و رول‌های ارتقا اعمال شدند.` });
         }
     }
 };
