@@ -2,14 +2,11 @@ const { Events, ChannelType, PermissionFlagsBits, EmbedBuilder, ActionRowBuilder
 const GuildConfig = require('../models/GuildConfig');
 const Giveaway = require('../models/Giveaway');
 const ServerMember = require('../models/ServerMember');
-const SecurityConfig = require('../models/SecurityConfig'); // این رو برات اضافه کردم تا سیستم امنیتت ارور نده
+const SecurityConfig = require('../models/SecurityConfig');
 
 module.exports = {
     name: Events.InteractionCreate,
     async execute(interaction, client) {
-        // 🛡️ فیکس مهم: قبلاً فقط اسلش‌کامندها try/catch داشتن؛ ارور توی دکمه‌ها و
-        // منوهای کشویی (که خیلی هم زیاد پیش میومد: پرمیشن نداشتن، پیام پاک شده، رِیت‌لیمیت و...)
-        // هندل نمی‌شد و باعث کرش کل ربات می‌شد. الان همه‌چیز داخل یک try/catch کلی هست.
         try {
 
             // ==========================================
@@ -28,9 +25,7 @@ module.exports = {
             else if (interaction.isAnySelectMenu()) {
                 const { customId, guild, values } = interaction;
 
-                // ==========================================
                 // ۱. منوهای مربوط به سیستم تیکت (admin_)
-                // ==========================================
                 if (customId.startsWith('admin_')) {
                     let dbConfig = await GuildConfig.findOne({ guildId: guild.id }) || new GuildConfig({ guildId: guild.id });
 
@@ -56,9 +51,7 @@ module.exports = {
                     return await interaction.update({ embeds: [updatedEmbed] });
                 }
 
-                // ==========================================
                 // ۲. منوهای مربوط به سیستم امنیت (sec_)
-                // ==========================================
                 if (customId.startsWith('sec_')) {
                     let secConfig = await SecurityConfig.findOne({ guildId: guild.id }) || new SecurityConfig({ guildId: guild.id });
 
@@ -85,11 +78,11 @@ module.exports = {
             }
 
             // ==========================================
-            // ۳. هندل کردن دکمه‌ها (موزیک، داشبورد و تیکت)
+            // ۳. هندل کردن دکمه‌ها
             // ==========================================
             else if (interaction.isButton()) {
 
-                // 🎵 دکمه‌های کنترل سیستم موزیک
+                // دکمه‌های کنترل سیستم موزیک
                 if (interaction.customId.startsWith('music_')) {
                     const queue = client.distube.getQueue(interaction.guildId);
                     if (!queue) return interaction.reply({ content: '❌ آهنگی در حال پخش نیست!', ephemeral: true });
@@ -122,7 +115,7 @@ module.exports = {
                     return;
                 }
 
-                // 🎁 دکمه شرکت در قرعه‌کشی (گیووی)
+                // دکمه شرکت در قرعه‌کشی (گیووی)
                 if (interaction.customId === 'gw_join') {
                     await interaction.deferReply({ ephemeral: true });
 
@@ -152,7 +145,7 @@ module.exports = {
                     return interaction.editReply('🎉 شما با موفقیت در این قرعه‌کشی شرکت کردید!');
                 }
 
-                // 🎫 هندل کردن دکمه‌های تیکت
+                // هندل کردن دکمه‌های تیکت
                 const dbConfig = await GuildConfig.findOne({ guildId: interaction.guild.id });
                 if (!dbConfig) return;
 
@@ -220,7 +213,6 @@ module.exports = {
                     await interaction.editReply({ embeds: [closedEmbed], components: [controlButtons] });
                 }
 
-                // ---- باز کردن مجدد ----
                 else if (interaction.customId === 'reopen_ticket') {
                     await interaction.deferReply();
                     const ownerId = interaction.channel.topic;
@@ -229,7 +221,6 @@ module.exports = {
                     await interaction.editReply({ embeds: [new EmbedBuilder().setTitle('🔓 تیکت مجدداً باز شد').setColor('Green')] });
                 }
 
-                // ---- گرفتن رونوشت (Transcript) ----
                 else if (interaction.customId === 'transcript_ticket') {
                     await interaction.deferReply();
                     const messages = await interaction.channel.messages.fetch({ limit: 100 });
@@ -248,15 +239,51 @@ module.exports = {
                     await interaction.editReply({ content: '📄 فایل رونوشت آماده شد:', files: [attachment] });
                 }
 
-                // ---- حذف کامل ----
                 else if (interaction.customId === 'delete_ticket') {
                     await interaction.reply('🗑️ چنل تا ۵ ثانیه دیگر حذف خواهد شد...');
                     setTimeout(() => interaction.channel.delete().catch(console.error), 5000);
                 }
             }
 
+            // ==========================================
+            // ۴. هندل کردن Autocomplete (جستجوی زنده برای دستور unban)
+            // ==========================================
+            else if (interaction.isAutocomplete()) {
+                if (interaction.commandName === 'unban') {
+                    const focusedValue = interaction.options.getFocused().toLowerCase();
+                    const bans = await interaction.guild.bans.fetch();
+                    const choices = bans.map(ban => ({ name: ban.user.tag, value: ban.user.id }));
+
+                    const filtered = choices.filter(choice => choice.name.toLowerCase().includes(focusedValue)).slice(0, 25);
+                    await interaction.respond(filtered);
+                }
+            }
+
+            // ==========================================
+            // ۵. هندل کردن ارسال Modal (برای دستور say)
+            // ==========================================
+            else if (interaction.isModalSubmit()) {
+                if (interaction.customId === 'say_modal') {
+                    const text = interaction.fields.getTextInputValue('say_text');
+
+                    // دریافت عکس از کش بات
+                    const imageUrl = client.sayImageCache?.get(interaction.user.id);
+
+                    const messagePayload = { content: text };
+                    if (imageUrl) messagePayload.files = [imageUrl];
+
+                    await interaction.channel.send(messagePayload);
+
+                    // پاک کردن عکس از مموری بات
+                    if (client.sayImageCache) {
+                        client.sayImageCache.delete(interaction.user.id);
+                    }
+
+                    await interaction.reply({ content: '✅ پیام با موفقیت ارسال شد.', ephemeral: true });
+                }
+            }
+
         } catch (error) {
-            // 🛡️ هر ارور غیرمنتظره‌ای که توی بخش دکمه‌ها/منوها پیش بیاد اینجا گیر میفته
             console.error('❌ خطای پیش‌بینی‌نشده در interactionCreate:', error);
         }
     }
