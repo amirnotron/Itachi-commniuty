@@ -5,9 +5,25 @@ module.exports = {
     data: new SlashCommandBuilder()
         .setName('modadmin')
         .setDescription('تنظیم دسترسی کامندهای مدیریتی')
-        .setDefaultMemberPermissions(PermissionFlagsBits.Administrator) // قفل کردن کامند فقط برای ادمین‌ها
-        .addSubcommand(sub => sub.setName('adduser').setDescription('اضافه کردن کاربر').addUserOption(opt => opt.setName('target').setRequired(true)))
-        .addSubcommand(sub => sub.setName('addrole').setDescription('اضافه کردن رول').addRoleOption(opt => opt.setName('target').setRequired(true))),
+        .setDefaultMemberPermissions(PermissionFlagsBits.Administrator)
+        .addSubcommand(sub => sub
+            .setName('adduser')
+            .setDescription('اضافه کردن کاربر')
+            .addUserOption(opt =>
+                opt.setName('target')
+                    .setDescription('کاربری که می‌خواهید دسترسی بدهید') // <--- این خط جا افتاده بود
+                    .setRequired(true)
+            )
+        )
+        .addSubcommand(sub => sub
+            .setName('addrole')
+            .setDescription('اضافه کردن رول')
+            .addRoleOption(opt =>
+                opt.setName('target')
+                    .setDescription('رولی که می‌خواهید دسترسی بدهید') // <--- این خط جا افتاده بود
+                    .setRequired(true)
+            )
+        ),
 
     async execute(interaction) {
         const subCommand = interaction.options.getSubcommand();
