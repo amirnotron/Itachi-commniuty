@@ -1,4 +1,4 @@
-const { Events, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
+const { Events, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, ActivityType } = require('discord.js');
 const GuildConfig = require('../models/GuildConfig');
 const Giveaway = require('../models/Giveaway');
 const { addXP } = require('../utils/levelManager');
@@ -8,6 +8,14 @@ module.exports = {
     once: true,
     async execute(client) {
         console.log(`🔥 بات ${client.user.tag} با موفقیت آنلاین شد!`);
+
+        client.user.setPresence({
+            status: 'idle',
+            activities: [{
+                name: 'Spongebob',
+                type: ActivityType.Watching
+            }]
+        });
 
         client.invitesCache = new Map();
 
